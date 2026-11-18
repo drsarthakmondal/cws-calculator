@@ -43,6 +43,13 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--line) 25%,transparent)}
 #msg{margin:8px 0 0;min-height:18px}
 .stat{display:inline-block;margin-right:18px;color:var(--mute)}
 .stat b{color:var(--fg)}
+footer{margin-top:8px;color:var(--mute);font-size:12.5px}
+footer details{border-top:1px solid var(--line);padding:10px 0}
+footer summary{cursor:pointer;font-weight:600;color:var(--fg);font-size:13.5px}
+footer p,footer li{margin:8px 0 0;max-width:80ch}
+footer ul{margin:6px 0 0;padding-left:20px}
+footer .cite{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;color:var(--fg);user-select:all}
+.fine{margin-top:12px}
 </style>
 </head>
 <body>
@@ -100,6 +107,32 @@ tr:nth-child(even) td{background:color-mix(in srgb,var(--line) 25%,transparent)}
 </div>
 <div class="tablewrap" id="out" hidden></div>
 </section>
+<footer>
+<details>
+<summary>Terms of use</summary>
+<ul>
+<li>The Cricket Win Score Calculator is provided free of charge for research, teaching and personal use. Credit the source when you publish results (see Cite this tool).</li>
+<li>The calculation runs on a private server. You may not copy, reproduce, scrape, decompile or reverse engineer the models, coefficients or built-in series totals, or try to infer them through automated or bulk requests.</li>
+<li>Usage limits apply (rows, series and requests per minute). Do not use scripts or bots against the service without permission.</li>
+<li>Results depend on the data you upload and on the model you choose. They are provided as is, without warranty of accuracy or fitness for any purpose, including pay, selection or betting decisions. You are responsible for how you use them.</li>
+<li>Access may be changed, limited or withdrawn at any time. These terms may be updated; continued use means you accept the current version.</li>
+</ul>
+</details>
+<details>
+<summary>Privacy</summary>
+<ul>
+<li>Files you load are read in your browser. When you click Calculate, the player rows and series totals in those files are sent to the calculation server, processed, and returned. They are not saved, and no account is needed.</li>
+<li>This site sets no cookies and uses no advertising or analytics trackers.</li>
+<li>The page is hosted on GitHub Pages and the calculation on Cloudflare Workers. These providers may keep standard technical logs, such as IP address and request time, under their own privacy policies.</li>
+<li>Do not upload personal data beyond the player names and match statistics the tool needs.</li>
+</ul>
+</details>
+<details>
+<summary>Cite this tool</summary>
+<p class="cite" id="cite"></p>
+</details>
+<p class="fine">&copy; 2026 Dr Sarthak Mondal. All rights reserved.</p>
+</footer>
 </div>
 
 <script src="config.js"></script>
@@ -245,6 +278,9 @@ drop.addEventListener('drop',e=>loadFiles([...e.dataTransfer.files]));
   }catch(e){sel.innerHTML='<option value="custom">Custom (enter your own)</option>'}
   const sync=()=>{$('custom').hidden=sel.value!=='custom'};sel.onchange=()=>{sync();updateRun()};sync();updateRun();
 })();
+</script>
+<script>
+(function(){var u=location.origin&&location.origin!=='null'?location.origin+'/':'';document.getElementById('cite').textContent='Mondal, S. (2026). Cricket Win Score Calculator [Web application]. '+u;})();
 </script>
 </body>
 </html>
