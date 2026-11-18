@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cricket Win Score Calculator</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--fg:#1b2230;--mute:#5d6778;--line:#dde1e8;--accent:#1f3864;--accent-fg:#fff;--good:#1d7a46;--bad:#b3261e;--head:#1f3864}
+@media (prefers-color-scheme:dark){:root{--bg:#12161d;--panel:#1a202a;--fg:#e6e9ef;--mute:#9aa4b5;--line:#2b3340;--accent:#7da2e8;--accent-fg:#0d1420;--good:#5fc88a;--bad:#f08a82;--head:#223052}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:16px}
+h2{font-size:15px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+fieldset{border:1px solid var(--line);border-radius:6px;margin:0;padding:12px}
+legend{padding:0 6px;font-weight:600}
+label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0}
+select,input[type=number],input[type=text],textarea{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:6px 8px;font:inherit}
+input[type=number]{width:110px;text-align:right;font-variant-numeric:tabular-nums}
+textarea{width:100%;min-height:70px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+button{background:var(--accent);color:var(--accent-fg);border:0;border-radius:5px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+button.sec{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:22px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.on{border-color:var(--accent);color:var(--fg)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{color:var(--mute);font-size:12px;margin:6px 0 0}
+.tablewrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:5px 9px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--head);color:#fff;text-align:center;font-weight:600;cursor:pointer;z-index:1}
+td.l,th.l{text-align:left}
+tr:nth-child(even) td{background:color-mix(in srgb,var(--line) 25%,transparent)}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tabs button{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.tabs button.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.ok{color:var(--good);font-weight:600}.bad{color:var(--bad);font-weight:600}
+.pts{width:130px}
+#msg{margin:8px 0 0;min-height:18px}
+.stat{display:inline-block;margin-right:18px;color:var(--mute)}
+.stat b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Cricket Win Score Calculator</h1>
+<p class="sub">Load player stats, choose a model (or enter your own coefficients and series totals), and get every batter's and bowler's points. Batting and bowling points each sum to half the series total.</p>
+
+<section>
+<h2>1. Model</h2>
+<div class="row"><label style="margin:0">Coefficient set <select id="model"><option value="">Loading…</option></select></label></div>
+<div id="custom" class="grid" hidden style="margin-top:12px">
+<fieldset><legend>Batters (custom)</legend>
+<label>Runs scored <input type="number" step="any" id="b_runs" value="0"></label>
+<label>Balls faced <input type="number" step="any" id="b_balls" value="0"></label>
+<label>Wickets lost <input type="number" step="any" id="b_wkts" value="0"></label>
+</fieldset>
+<fieldset><legend>Bowlers (custom)</legend>
+<label>Runs conceded <input type="number" step="any" id="w_runs" value="0"></label>
+<label>Balls bowled <input type="number" step="any" id="w_balls" value="0"></label>
+<label>Wickets taken <input type="number" step="any" id="w_wkts" value="0"></label>
+</fieldset>
+</div>
+<p class="note">The preset sets are calculated on the server. Their coefficients are not shown. Choose Custom to enter your own.</p>
+</section>
+
+<section>
+<h2>2. Player stats</h2>
+<div class="drop" id="drop" tabindex="0">Drop .xlsx or .csv files here, or click to choose<br><span class="note">One file per series (Batters and Bowlers sheets), or one combined file with Competition (and optional Season) columns</span></div>
+<input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
+<p class="note">Recognised columns. Batters: Player, Team, Runs, Balls Faced (or Balls), Wickets Lost (or Dismissals). Bowlers: Player, Team, Runs Conceded (or Runs), Balls Bowled, Wickets Taken (or Wickets). Players with 0 balls are excluded.</p>
+<div id="loaded" class="note"></div>
+</section>
+
+<section>
+<h2>3. Total points per series</h2>
+<div id="seriesBox"><p class="note">Load stats to list the series.</p></div>
+<details style="margin-top:10px"><summary>Paste points in bulk</summary>
+<p class="note">One per line: series name, then points, separated by a tab or a comma (the last comma splits the number). Names must match the list above.</p>
+<textarea id="bulk" placeholder="2025/26 - Syed Mushtaq Ali Trophy&#9;48"></textarea>
+<div class="row" style="margin-top:6px"><button class="sec" id="applyBulk">Apply pasted points</button></div>
+</details>
+<div id="msg" role="status"></div>
+</section>
+
+<section>
+<h2>4. Results</h2>
+<div class="row" style="margin-bottom:10px">
+<button id="run" disabled>Calculate</button>
+<button class="sec" id="xlsx" disabled>Download Excel</button>
+<button class="sec" id="csv" disabled>Download CSV (current tab)</button>
+</div>
+<div id="stats"></div>
+<div class="tabs" id="tabs" hidden>
+<button data-t="bat" class="on">Batters</button><button data-t="bowl">Bowlers</button>
+</div>
+<div class="tablewrap" id="out" hidden></div>
+</section>
+</div>
+
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const store={bat:[],bowl:[]};           // raw rows: {series,player,team,runs,balls,wk}
+const seriesPts={};                     // series -> points (number or undefined)
+let res=null,tab='bat';
+
+const norm=s=>String(s).toLowerCase().replace(/[^a-z]/g,'');
+function pick(row,names){for(const k in row){if(names.includes(norm(k)))return row[k]}return undefined}
+const num=v=>{const n=Number(v);return isFinite(n)?n:0};
+
+function classify(rows,sheetName){
+  if(!rows.length)return null;
+  const keys=Object.keys(rows[0]).map(norm);
+  if(keys.includes('ballsbowled'))return 'bowl';
+  if(keys.includes('ballsfaced'))return 'bat';
+  const sn=norm(sheetName||'');
+  if(sn.includes('bowl'))return 'bowl';
+  if(sn.includes('bat'))return 'bat';
+  return null;
+}
+function addRows(rows,kind,fileName){
+  const base=fileName.replace(/\.[^.]+$/,'');
+  for(const r of rows){
+    const player=pick(r,['player','name','playername']);
+    if(!player)continue;
+    const comp=pick(r,['competition','series','tournament']),season=pick(r,['season']);
+    const series=comp?(season?season+' - '+comp:String(comp)):base;
+    if(kind==='bat'){
+      store.bat.push({series,player,team:pick(r,['team'])||'',runs:num(pick(r,['runs','runsscored'])),balls:num(pick(r,['ballsfaced','balls'])),wk:num(pick(r,['wicketslost','dismissals','timesdismissed']))});
+    }else{
+      store.bowl.push({series,player,team:pick(r,['team'])||'',runs:num(pick(r,['runsconceded','runs'])),balls:num(pick(r,['ballsbowled','balls'])),wk:num(pick(r,['wicketstaken','wickets']))});
+    }
+  }
+}
+async function loadFiles(files){
+  let added=[];
+  for(const f of files){
+    try{
+      const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+      for(const sn of wb.SheetNames){
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''});
+        const k=classify(rows,sn);
+        if(k){addRows(rows,k,f.name);added.push(f.name+' / '+sn+' ('+rows.length+' rows, '+(k==='bat'?'batters':'bowlers')+')')}
+      }
+    }catch(e){added.push(f.name+': could not read ('+e.message+')')}
+  }
+  $('loaded').innerHTML=(added.length?added.join('<br>'):'No recognisable sheets found.')+'<br><b>Total: '+store.bat.length+' batter rows, '+store.bowl.length+' bowler rows</b>';
+  renderSeries();
+}
+function allSeries(){return [...new Set([...store.bat,...store.bowl].map(r=>r.series))].sort()}
+function renderSeries(){
+  const S=allSeries();
+  if(!S.length){$('seriesBox').innerHTML='<p class="note">Load stats to list the series.</p>';return}
+  $('seriesBox').innerHTML='<div class="tablewrap" style="max-height:260px"><table><tr><th class="l">Series</th><th>Batter rows</th><th>Bowler rows</th><th>Total series points</th></tr>'+
+  S.map((s,i)=>`<tr><td class="l">${esc(s)}</td><td>${store.bat.filter(r=>r.series===s).length}</td><td>${store.bowl.filter(r=>r.series===s).length}</td><td><input type="number" step="any" class="pts" data-s="${i}" value="${seriesPts[s]??''}"></td></tr>`).join('')+'</table></div>';
+  $('seriesBox').querySelectorAll('input.pts').forEach(inp=>inp.addEventListener('input',()=>{const s=S[inp.dataset.s];const v=inp.value===''?undefined:Number(inp.value);if(v===undefined)delete seriesPts[s];else seriesPts[s]=v;updateRun()}));
+  updateRun();
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+const builtIn=()=>!!(window.modelInfo&&window.modelInfo[$('model').value]&&window.modelInfo[$('model').value].hasPoints);
+function updateRun(){const S=allSeries();$('run').disabled=!S.length||!(builtIn()||S.some(s=>seriesPts[s]!==undefined));const missing=S.filter(s=>seriesPts[s]===undefined).length;$('msg').textContent=S.length?(builtIn()?'This model has built-in series totals. Anything you enter below is used only for series the model does not cover.':(missing?missing+' of '+S.length+' series have no points yet and will be skipped.':'All series have points.')):''}
+
+$('applyBulk').onclick=()=>{
+  const S=allSeries();let n=0,bad=[];
+  $('bulk').value.split(/\r?\n/).forEach(line=>{
+    line=line.trim();if(!line)return;
+    let name,pt;const t=line.lastIndexOf('\t');
+    if(t>=0){name=line.slice(0,t);pt=line.slice(t+1)}else{const c=line.lastIndexOf(',');name=line.slice(0,c);pt=line.slice(c+1)}
+    name=name.trim().replace(/^"|"$/g,'');const v=Number(pt);
+    if(S.includes(name)&&isFinite(v)){seriesPts[name]=v;n++}else bad.push(name||line);
+  });
+  renderSeries();$('msg').textContent=n+' series updated.'+(bad.length?' Not matched: '+bad.slice(0,5).join('; ')+(bad.length>5?'…':''):'');
+};
+
+async function compute(){
+  const slim=r=>({series:r.series,player:r.player,team:r.team,runs:r.runs,balls:r.balls,wk:r.wk});
+  const body={model:$('model').value,custom:{bat:[+$('b_runs').value,+$('b_balls').value,+$('b_wkts').value],bowl:[+$('w_runs').value,+$('w_balls').value,+$('w_wkts').value]},bat:store.bat.filter(r=>r.balls>0&&(builtIn()||seriesPts[r.series]!==undefined)).map(slim),bowl:store.bowl.filter(r=>r.balls>0&&(builtIn()||seriesPts[r.series]!==undefined)).map(slim),points:seriesPts};
+  const r=await fetch((window.CWS_API||'')+'/api/calc',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({error:'Unexpected response.'}));
+  if(!r.ok)throw new Error(j.error||('Error '+r.status));
+  const key=new Map();
+  [['bat',store.bat],['bowl',store.bowl]].forEach(([k,rows])=>rows.forEach(x=>key.set(k+'|'+x.series+'|'+x.player+'|'+x.team+'|'+x.balls,x)));
+  const fill=(k,list)=>list.map(o=>{const s=key.get(k+'|'+o.series+'|'+o.player+'|'+o.team+'|'+o.balls)||{};return {series:o.series,player:o.player,team:o.team,runs:s.runs??'',balls:o.balls,wk:s.wk??'',pts:o.points}});
+  const bat=fill('bat',j.bat),bowl=fill('bowl',j.bowl);
+  bat.sort((a,b)=>a.series.localeCompare(b.series)||b.pts-a.pts);bowl.sort((a,b)=>a.series.localeCompare(b.series)||b.pts-a.pts);
+  res={bat,bowl,missing:j.missing||[]};
+}
+const COLS={
+ bat:[['series','Series','l'],['player','Player','l'],['team','Team','l'],['runs','Runs Scored'],['balls','Balls Faced'],['wk','Wickets Lost'],['pts','Points',2]],
+ bowl:[['series','Series','l'],['player','Player','l'],['team','Team','l'],['runs','Runs Conceded'],['balls','Balls Bowled'],['wk','Wickets Taken'],['pts','Points',2]]
+};
+let sortKey=null,sortDir=1;
+function render(){
+  if(!res)return;
+  const cols=COLS[tab];let data=res[tab].slice();
+  if(sortKey){data.sort((a,b)=>{const x=a[sortKey],y=b[sortKey];return (typeof x==='string'?x.localeCompare(y):x-y)*sortDir})}
+  const fmt=(v,d)=>typeof v==='number'?(d!==undefined&&d!=='l'?v.toFixed(d):String(v)):esc(v);
+  const shown=data.slice(0,2000);
+  $('out').innerHTML='<table><tr>'+cols.map(c=>`<th class="${c[2]==='l'?'l':''}" data-k="${c[0]}">${c[1]}</th>`).join('')+'</tr>'+
+   shown.map(r=>'<tr>'+cols.map(c=>{let cls=c[2]==='l'?'l':'';let v=r[c[0]];let t=fmt(v,c[2]);return `<td class="${cls}">${t}</td>`}).join('')+'</tr>').join('')+'</table>'+(data.length>shown.length?`<p class="note" style="padding:6px">Showing first ${shown.length} of ${data.length} rows. The Excel download has all rows.</p>`:'');
+  $('out').querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir=-sortDir;else{sortKey=k;sortDir=1}render()});
+  $('out').hidden=false;$('tabs').hidden=false;
+  $('tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+  $('stats').innerHTML=(res.missing.length?`<div class="bad" style="margin-bottom:6px">${res.missing.length} series skipped, no total points available: ${esc(res.missing.slice(0,5).join('; '))}${res.missing.length>5?'…':''}</div>`:'')+`<span class="stat">Batters <b>${res.bat.length}</b></span><span class="stat">Bowlers <b>${res.bowl.length}</b></span>`;
+}
+$('run').onclick=async()=>{$('run').disabled=true;$('msg').textContent='Calculating…';try{await compute();sortKey=null;render();$('xlsx').disabled=false;$('csv').disabled=false;updateRun()}catch(e){$('msg').textContent=e.message;$('run').disabled=false}};
+$('tabs').onclick=e=>{const t=e.target.dataset&&e.target.dataset.t;if(t){tab=t;sortKey=null;render()}};
+
+function sheetRows(tabName){
+  const cols=COLS[tabName];
+  return res[tabName].map(r=>Object.fromEntries(cols.map(c=>[c[1],r[c[0]]])));
+}
+$('xlsx').onclick=()=>{
+  const wb=XLSX.utils.book_new();
+  [['bat','Batters'],['bowl','Bowlers']].forEach(([t,n])=>{
+    const ws=XLSX.utils.json_to_sheet(sheetRows(t));ws['!cols']=COLS[t].map(c=>({wch:c[2]==='l'?(c[0]==='series'?44:22):16}));XLSX.utils.book_append_sheet(wb,ws,n);
+  });
+  XLSX.writeFile(wb,'cricket_win_score.xlsx');
+};
+$('csv').onclick=()=>{
+  const ws=XLSX.utils.json_to_sheet(sheetRows(tab));const csv=XLSX.utils.sheet_to_csv(ws);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cricket_win_score_'+tab+'.csv';a.click();
+};
+
+const drop=$('drop'),fi=$('file');
+drop.onclick=()=>fi.click();
+drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fi.click()}};
+fi.onchange=()=>{loadFiles([...fi.files]);fi.value=''};
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('on')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('on')}));
+drop.addEventListener('drop',e=>loadFiles([...e.dataTransfer.files]));
+</script>
+<script>
+(async()=>{
+  const sel=$('model');
+  try{
+    const j=await (await fetch((window.CWS_API||'')+'/api/models')).json();
+    window.modelInfo=Object.fromEntries((j.models||[]).map(m=>[m.id,m]));sel.innerHTML=(j.models||[]).map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')+'<option value="custom">Custom (enter your own)</option>';
+  }catch(e){sel.innerHTML='<option value="custom">Custom (enter your own)</option>'}
+  const sync=()=>{$('custom').hidden=sel.value!=='custom'};sel.onchange=()=>{sync();updateRun()};sync();updateRun();
+})();
+</script>
+</body>
+</html>
