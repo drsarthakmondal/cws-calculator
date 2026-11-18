@@ -50,6 +50,17 @@ footer p,footer li{margin:8px 0 0;max-width:80ch}
 footer ul{margin:6px 0 0;padding-left:20px}
 footer .cite{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;color:var(--fg);user-select:all}
 .fine{margin-top:12px}
+h3{font-size:13.5px;margin:0 0 6px}
+.chartgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+.chartgrid>div{min-width:0}
+svg.sc{width:100%;height:auto;display:block}
+svg.sc text{fill:var(--mute);font:11px system-ui,sans-serif}
+svg.sc .axt{fill:var(--fg);font-size:12px}
+svg.sc .gl{stroke:var(--line);stroke-width:1}
+svg.sc .zero{stroke:var(--mute);stroke-width:1;stroke-dasharray:3 3}
+svg.sc circle{fill:var(--accent);fill-opacity:.5;stroke:var(--accent);stroke-width:1}
+svg.sc circle:hover{fill-opacity:.95}
+#tip{position:fixed;z-index:9;pointer-events:none;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;max-width:260px}
 </style>
 </head>
 <body>
@@ -106,6 +117,19 @@ footer .cite{background:var(--bg);border:1px solid var(--line);border-radius:6px
 <button data-t="bat" class="on">Batters</button><button data-t="bowl">Bowlers</button>
 </div>
 <div class="tablewrap" id="out" hidden></div>
+</section>
+<section id="charts" hidden>
+<h2>5. Charts</h2>
+<div class="row" style="margin-bottom:12px">
+<label style="margin:0">Series <select id="c_series"></select></label>
+<label style="margin:0">Minimum balls, % of the series maximum <input type="number" id="c_min" value="5" min="0" max="100" step="1"></label>
+<label style="margin:0">Points per win <input type="number" id="c_ppw" value="2" min="0.0001" step="any"></label>
+</div>
+<div class="chartgrid">
+<div><h3>Batters: strike rate vs wins</h3><div id="chart_bat"></div><p class="note" id="n_bat"></p></div>
+<div><h3>Bowlers: economy rate vs wins</h3><div id="chart_bowl"></div><p class="note" id="n_bowl"></p></div>
+</div>
+<p class="note">Wins = Points &divide; Points per win (2 by default, matching 2 league points for a win). Players are included only if their balls are at least the chosen % of the most balls faced (or bowled) by any single player in the same series. The cut-off is applied series by series.</p>
 </section>
 <footer>
 <details>
@@ -242,7 +266,7 @@ function render(){
   $('tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   $('stats').innerHTML=(res.missing.length?`<div class="bad" style="margin-bottom:6px">${res.missing.length} series skipped, no total points available: ${esc(res.missing.slice(0,5).join('; '))}${res.missing.length>5?'…':''}</div>`:'')+`<span class="stat">Batters <b>${res.bat.length}</b></span><span class="stat">Bowlers <b>${res.bowl.length}</b></span>`;
 }
-$('run').onclick=async()=>{$('run').disabled=true;$('msg').textContent='Calculating…';try{await compute();sortKey=null;render();$('xlsx').disabled=false;$('csv').disabled=false;updateRun()}catch(e){$('msg').textContent=e.message;$('run').disabled=false}};
+$('run').onclick=async()=>{$('run').disabled=true;$('msg').textContent='Calculating…';try{await compute();sortKey=null;render();$('xlsx').disabled=false;$('csv').disabled=false;updateRun();window.renderCharts&&window.renderCharts()}catch(e){$('msg').textContent=e.message;$('run').disabled=false}};
 $('tabs').onclick=e=>{const t=e.target.dataset&&e.target.dataset.t;if(t){tab=t;sortKey=null;render()}};
 
 function sheetRows(tabName){
@@ -281,6 +305,69 @@ drop.addEventListener('drop',e=>loadFiles([...e.dataTransfer.files]));
 </script>
 <script>
 (function(){var u=location.origin&&location.origin!=='null'?location.origin+'/':'';document.getElementById('cite').textContent='Mondal, S. (2026). Cricket Win Score Calculator [Web application]. '+u;})();
+</script>
+<div id="tip"></div>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function niceTicks(lo,hi,n){
+  if(!(hi>lo)){hi=lo+1}
+  const raw=(hi-lo)/n,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;
+  const step=(f<1.5?1:f<3.5?2:f<7.5?5:10)*p;
+  const a=Math.floor(lo/step)*step,b=Math.ceil(hi/step)*step,t=[];
+  for(let v=a;v<=b+step/2;v+=step)t.push(Math.round(v/step)*step);
+  return {t,lo:a,hi:b,step};
+}
+const fmtTick=(v,step)=>{const d=step>=1?0:Math.min(3,Math.ceil(-Math.log10(step)));return v.toFixed(d)};
+function scatter(el,pts,xlab,ylab,xdec){
+  if(!pts.length){el.innerHTML='<p class="note">No players meet the cut-off.</p>';return}
+  const W=560,H=380,m={l:56,r:14,t:12,b:46},iw=W-m.l-m.r,ih=H-m.t-m.b;
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const X=niceTicks(Math.min(...xs),Math.max(...xs),6),Y=niceTicks(Math.min(...ys),Math.max(...ys),6);
+  const sx=v=>m.l+(v-X.lo)/(X.hi-X.lo)*iw,sy=v=>m.t+ih-(v-Y.lo)/(Y.hi-Y.lo)*ih;
+  let s=`<svg class="sc" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(ylab)} against ${esc(xlab)}, ${pts.length} players">`;
+  Y.t.forEach(v=>{s+=`<line class="gl" x1="${m.l}" x2="${W-m.r}" y1="${sy(v)}" y2="${sy(v)}"/><text x="${m.l-6}" y="${sy(v)+4}" text-anchor="end">${fmtTick(v,Y.step)}</text>`});
+  X.t.forEach(v=>{s+=`<line class="gl" y1="${m.t}" y2="${H-m.b}" x1="${sx(v)}" x2="${sx(v)}"/><text x="${sx(v)}" y="${H-m.b+16}" text-anchor="middle">${fmtTick(v,X.step)}</text>`});
+  if(Y.lo<0&&Y.hi>0)s+=`<line class="zero" x1="${m.l}" x2="${W-m.r}" y1="${sy(0)}" y2="${sy(0)}"/>`;
+  s+=`<text class="axt" x="${m.l+iw/2}" y="${H-6}" text-anchor="middle">${esc(xlab)}</text>`;
+  s+=`<text class="axt" transform="translate(14 ${m.t+ih/2}) rotate(-90)" text-anchor="middle">${esc(ylab)}</text>`;
+  pts.forEach((p,i)=>{s+=`<circle data-i="${i}" cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.4"/>`});
+  s+='</svg>';el.innerHTML=s;
+  const tip=$('tip');
+  el.querySelectorAll('circle').forEach(c=>{
+    const show=e=>{const p=pts[c.dataset.i];tip.innerHTML=`<b>${esc(p.player)}</b><br>${esc(p.team)}${p.team?' · ':''}${esc(p.series)}<br>${esc(xlab)}: ${p.x.toFixed(xdec)}<br>${esc(ylab)}: ${p.y.toFixed(3)}<br>Balls: ${p.balls}`;tip.style.display='block';
+      const x=e.clientX+14,y=e.clientY+14;tip.style.left=Math.min(x,innerWidth-tip.offsetWidth-8)+'px';tip.style.top=Math.min(y,innerHeight-tip.offsetHeight-8)+'px'};
+    c.addEventListener('mousemove',show);c.addEventListener('mouseenter',show);c.addEventListener('click',show);
+    c.addEventListener('mouseleave',()=>{tip.style.display='none'});
+  });
+}
+function build(rows,series,minPct,ppw,kind){
+  const by={};rows.forEach(r=>{(by[r.series]??=[]).push(r)});
+  const out=[];let total=0,cut=null;
+  for(const s in by){
+    if(series!=='__all'&&s!==series)continue;
+    const R=by[s],mx=Math.max(...R.map(r=>r.balls)),min=mx*minPct/100;total+=R.length;
+    if(series!=='__all')cut=min;
+    R.forEach(r=>{if(r.balls>=min&&r.balls>0)out.push({x:kind==='bat'?r.runs/r.balls*100:r.runs/r.balls*6,y:r.pts/ppw,player:r.player,team:r.team,series:s,balls:r.balls})});
+  }
+  return {out,total,cut};
+}
+window.renderCharts=function(){
+  if(typeof res==='undefined'||!res)return;
+  const sel=$('c_series'),cur=sel.value;
+  const S=[...new Set([...res.bat,...res.bowl].map(r=>r.series))].sort();
+  if(sel.dataset.n!==String(S.length)||!sel.options.length){sel.innerHTML='<option value="__all">All series (cut-off applied per series)</option>'+S.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');sel.dataset.n=String(S.length);if(S.includes(cur))sel.value=cur}
+  const minPct=Math.max(0,Math.min(100,Number($('c_min').value)||0)),ppw=Number($('c_ppw').value)>0?Number($('c_ppw').value):2;
+  [['bat','Strike rate (runs per 100 balls)','Wins',res.bat,0],['bowl','Economy rate (runs per over)','Wins',res.bowl,2]].forEach(([k,xl,yl,rows,dec])=>{
+    const b=build(rows,sel.value,minPct,ppw,k);
+    scatter($('chart_'+k),b.out,xl,yl,dec===0?1:2);
+    $('n_'+k).textContent=`${b.out.length} of ${b.total} ${k==='bat'?'batters':'bowlers'} shown`+(b.cut!==null?` (at least ${Math.ceil(b.cut)} balls)`:'');
+  });
+  $('charts').hidden=false;
+};
+['c_series','c_min','c_ppw'].forEach(id=>{$(id).addEventListener('input',()=>window.renderCharts());$(id).addEventListener('change',()=>window.renderCharts())});
+})();
 </script>
 </body>
 </html>
