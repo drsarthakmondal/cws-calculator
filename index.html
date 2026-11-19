@@ -57,16 +57,100 @@ svg.sc{width:100%;height:auto;display:block}
 svg.sc text{fill:var(--mute);font:11px system-ui,sans-serif}
 svg.sc .axt{fill:var(--fg);font-size:12px}
 svg.sc .gl{stroke:var(--line);stroke-width:1}
-svg.sc .zero{stroke:var(--mute);stroke-width:1;stroke-dasharray:3 3}
+svg.sc .med{stroke:var(--fg);stroke-width:1.5;opacity:.75}
+svg.sc .medt{fill:var(--fg);font-size:11px;font-weight:600}
 svg.sc circle{fill:var(--accent);fill-opacity:.5;stroke:var(--accent);stroke-width:1}
 svg.sc circle:hover{fill-opacity:.95}
 #tip{position:fixed;z-index:9;pointer-events:none;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;max-width:260px}
+#howto{padding:0}
+#howto>summary{cursor:pointer;font-weight:700;font-size:15px;padding:14px 16px;list-style:none}
+#howto>summary::-webkit-details-marker{display:none}
+#howto>summary::before{content:"\25B8";display:inline-block;width:1.2em;color:var(--accent)}
+#howto[open]>summary::before{content:"\25BE"}
+#howto .body{padding:0 16px 16px;border-top:1px solid var(--line)}
+#howto h3{margin:16px 0 4px}
+#howto p,#howto li{max-width:80ch;margin:6px 0}
+#howto ul,#howto ol{margin:4px 0;padding-left:22px}
+#howto code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12.5px}
+#howto table{width:auto;margin:6px 0}
+#howto th{position:static;cursor:default}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>Cricket Win Score Calculator</h1>
 <p class="sub">Load player stats, choose a model (or enter your own coefficients and series totals), and get every batter's and bowler's points. Batting and bowling points each sum to half the series total.</p>
+
+<section id="howto-wrap" style="padding:0">
+<details id="howto">
+<summary>How to use this calculator</summary>
+<div class="body">
+
+<h3>What it does</h3>
+<p>It scores every batter and bowler in a series from their runs, balls and wickets, and turns that into points and wins. Batting points add up to half of the series' total points, and bowling points add up to the other half.</p>
+
+<h3>Quick start</h3>
+<ol>
+<li>Choose a model in step 1, or choose <b>Custom</b> to enter your own coefficients.</li>
+<li>Load your stats file in step 2 (.xlsx or .csv).</li>
+<li>In step 3, check the series list. If your model has built-in totals for your series, you can leave the boxes empty. Otherwise type each series' total points.</li>
+<li>Click <b>Calculate</b>, read the tables and charts, and use <b>Download Excel</b> to keep the results.</li>
+</ol>
+
+<h3>Preparing your data file</h3>
+<p>Use an .xlsx workbook with a <b>Batters</b> sheet and a <b>Bowlers</b> sheet, or a .csv for one table at a time (a .csv must use the heading <code>Balls Faced</code> for batters or <code>Balls Bowled</code> for bowlers so the tool can tell them apart). Column names are matched ignoring capitals and spaces.</p>
+<table>
+<tr><th class="l">Sheet</th><th class="l">Required columns</th></tr>
+<tr><td class="l">Batters</td><td class="l"><code>Player</code> <code>Team</code> <code>Runs</code> <code>Balls Faced</code> (or <code>Balls</code>) <code>Wickets Lost</code> (or <code>Dismissals</code>)</td></tr>
+<tr><td class="l">Bowlers</td><td class="l"><code>Player</code> <code>Team</code> <code>Runs Conceded</code> (or <code>Runs</code>) <code>Balls Bowled</code> <code>Wickets Taken</code> (or <code>Wickets</code>)</td></tr>
+</table>
+<ul>
+<li><b>One file per series:</b> the series name is the file name without the extension. A file called <code>WBBL 2025.xlsx</code> becomes the series "WBBL 2025".</li>
+<li><b>One combined file:</b> add <code>Competition</code> (and optionally <code>Season</code>) columns. The series name is then "Season - Competition".</li>
+<li>Players with 0 balls faced or bowled are left out.</li>
+<li>You can load several files at once.</li>
+</ul>
+<p><button class="sec" id="sampleBtn" type="button">Download a sample file</button> <span class="note">The sample contains made-up example players, only to show the layout.</span></p>
+
+<h3>Choosing a model</h3>
+<p>The preset models use fixed coefficients that are calculated on the server and are not shown. A model that has built-in totals for your series calculates straight away. A model without them asks you to type each series' total points. <b>Custom</b> lets you enter your own three coefficients for batters (runs, balls faced, wickets lost) and three for bowlers (runs conceded, balls bowled, wickets taken), and your own series totals.</p>
+
+<h3>Series total points</h3>
+<p>This is the total number of league points awarded in the series, added up across all teams (for example 2 points per win). It sets how many points are shared out. If a series has a built-in total, the tool uses it and any number you type for that series is ignored. If it has none, type it in step 3, or paste several at once under "Paste points in bulk" (one line per series: name, then points).</p>
+
+<h3>Reading the results</h3>
+<ul>
+<li><b>Points</b> is each player's share of the series points. It can be negative if a player cost their team more than they added.</li>
+<li>Batting points sum to half the series total, and so do bowling points.</li>
+<li><b>Wins</b> in the charts is Points divided by "Points per win" (2 by default). Change that box if one win is worth a different number of points in your competition.</li>
+<li>Click a column heading to sort. The Excel download contains all rows and both tables.</li>
+</ul>
+
+<h3>Reading the charts</h3>
+<ul>
+<li>Batters: runs scored against wins. Bowlers: wickets taken against wins.</li>
+<li>The two dark lines are the medians of the players shown. Players in the top-right quadrant are above the median on both measures.</li>
+<li>Only players with at least 5% of the most balls faced (or bowled) by any single player in the same series are shown. Change the percentage in the box above the charts. Pick one series to see its exact cut-off.</li>
+<li>Hover over, or tap, a dot to see the player.</li>
+</ul>
+
+<h3>Limits</h3>
+<p>Up to 6,000 rows per table and 200 series per calculation, and about 30 calculations a minute. Larger files should be split by series.</p>
+
+<h3>Troubleshooting</h3>
+<ul>
+<li><b>"Series skipped, no total points available":</b> the model has no built-in total for that series name. Type the total in step 3, or rename your file to match the series.</li>
+<li><b>Nothing is listed, or fewer players than expected:</b> check the column names above. Rows with 0 balls are excluded.</li>
+<li><b>Calculate is greyed out:</b> enter at least one series total, or choose a model that has built-in totals.</li>
+<li><b>The model list shows only Custom:</b> the page could not reach the calculation server. Reload, and try again in a minute.</li>
+<li><b>Charts look empty:</b> lower the minimum balls percentage, or choose "All series".</li>
+</ul>
+
+<h3>Citing</h3>
+<p>If you use results in a paper, report or post, please cite the tool. The citation is at the bottom of the page under "Cite this tool".</p>
+</div>
+</details>
+</section>
 
 <section>
 <h2>1. Model</h2>
@@ -126,10 +210,10 @@ svg.sc circle:hover{fill-opacity:.95}
 <label style="margin:0">Points per win <input type="number" id="c_ppw" value="2" min="0.0001" step="any"></label>
 </div>
 <div class="chartgrid">
-<div><h3>Batters: strike rate vs wins</h3><div id="chart_bat"></div><p class="note" id="n_bat"></p></div>
-<div><h3>Bowlers: economy rate vs wins</h3><div id="chart_bowl"></div><p class="note" id="n_bowl"></p></div>
+<div><h3>Batters: runs scored vs wins</h3><div id="chart_bat"></div><p class="note" id="n_bat"></p></div>
+<div><h3>Bowlers: wickets taken vs wins</h3><div id="chart_bowl"></div><p class="note" id="n_bowl"></p></div>
 </div>
-<p class="note">Wins = Points &divide; Points per win (2 by default, matching 2 league points for a win). Players are included only if their balls are at least the chosen % of the most balls faced (or bowled) by any single player in the same series. The cut-off is applied series by series.</p>
+<p class="note">Wins = Points &divide; Points per win (2 by default, matching 2 league points for a win). The axes cross at the medians of the players shown. Players are included only if their balls are at least the chosen % of the most balls faced (or bowled) by any single player in the same series. The cut-off is applied series by series.</p>
 </section>
 <footer>
 <details>
@@ -311,28 +395,31 @@ drop.addEventListener('drop',e=>loadFiles([...e.dataTransfer.files]));
 (function(){
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function niceTicks(lo,hi,n){
+function niceTicks(lo,hi,n,minStep){
   if(!(hi>lo)){hi=lo+1}
   const raw=(hi-lo)/n,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;
-  const step=(f<1.5?1:f<3.5?2:f<7.5?5:10)*p;
+  const step=Math.max(minStep||0,(f<1.5?1:f<3.5?2:f<7.5?5:10)*p);
   const a=Math.floor(lo/step)*step,b=Math.ceil(hi/step)*step,t=[];
   for(let v=a;v<=b+step/2;v+=step)t.push(Math.round(v/step)*step);
   return {t,lo:a,hi:b,step};
 }
 const fmtTick=(v,step)=>{const d=step>=1?0:Math.min(3,Math.ceil(-Math.log10(step)));return v.toFixed(d)};
+const median=a=>{const s=a.slice().sort((x,y)=>x-y),n=s.length;return n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2};
 function scatter(el,pts,xlab,ylab,xdec){
   if(!pts.length){el.innerHTML='<p class="note">No players meet the cut-off.</p>';return}
   const W=560,H=380,m={l:56,r:14,t:12,b:46},iw=W-m.l-m.r,ih=H-m.t-m.b;
   const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
-  const X=niceTicks(Math.min(...xs),Math.max(...xs),6),Y=niceTicks(Math.min(...ys),Math.max(...ys),6);
+  const X=niceTicks(Math.min(...xs),Math.max(...xs),6,1),Y=niceTicks(Math.min(...ys),Math.max(...ys),6),mx=median(xs),my=median(ys);
   const sx=v=>m.l+(v-X.lo)/(X.hi-X.lo)*iw,sy=v=>m.t+ih-(v-Y.lo)/(Y.hi-Y.lo)*ih;
   let s=`<svg class="sc" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(ylab)} against ${esc(xlab)}, ${pts.length} players">`;
   Y.t.forEach(v=>{s+=`<line class="gl" x1="${m.l}" x2="${W-m.r}" y1="${sy(v)}" y2="${sy(v)}"/><text x="${m.l-6}" y="${sy(v)+4}" text-anchor="end">${fmtTick(v,Y.step)}</text>`});
   X.t.forEach(v=>{s+=`<line class="gl" y1="${m.t}" y2="${H-m.b}" x1="${sx(v)}" x2="${sx(v)}"/><text x="${sx(v)}" y="${H-m.b+16}" text-anchor="middle">${fmtTick(v,X.step)}</text>`});
-  if(Y.lo<0&&Y.hi>0)s+=`<line class="zero" x1="${m.l}" x2="${W-m.r}" y1="${sy(0)}" y2="${sy(0)}"/>`;
   s+=`<text class="axt" x="${m.l+iw/2}" y="${H-6}" text-anchor="middle">${esc(xlab)}</text>`;
   s+=`<text class="axt" transform="translate(14 ${m.t+ih/2}) rotate(-90)" text-anchor="middle">${esc(ylab)}</text>`;
   pts.forEach((p,i)=>{s+=`<circle data-i="${i}" cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.4"/>`});
+  s+=`<line class="med" x1="${sx(mx)}" x2="${sx(mx)}" y1="${m.t}" y2="${H-m.b}"/><line class="med" x1="${m.l}" x2="${W-m.r}" y1="${sy(my)}" y2="${sy(my)}"/>`;
+  const rt=sx(mx)>W-m.r-90;
+  s+=`<text class="medt" x="${sx(mx)+(rt?-4:4)}" y="${m.t+11}" text-anchor="${rt?'end':'start'}">median ${mx.toFixed(xdec)}</text><text class="medt" x="${W-m.r-3}" y="${sy(my)-4}" text-anchor="end">median ${my.toFixed(2)}</text>`;
   s+='</svg>';el.innerHTML=s;
   const tip=$('tip');
   el.querySelectorAll('circle').forEach(c=>{
@@ -349,7 +436,7 @@ function build(rows,series,minPct,ppw,kind){
     if(series!=='__all'&&s!==series)continue;
     const R=by[s],mx=Math.max(...R.map(r=>r.balls)),min=mx*minPct/100;total+=R.length;
     if(series!=='__all')cut=min;
-    R.forEach(r=>{if(r.balls>=min&&r.balls>0)out.push({x:kind==='bat'?r.runs/r.balls*100:r.runs/r.balls*6,y:r.pts/ppw,player:r.player,team:r.team,series:s,balls:r.balls})});
+    R.forEach(r=>{if(r.balls>=min&&r.balls>0)out.push({x:kind==='bat'?r.runs:r.wk,y:r.pts/ppw,player:r.player,team:r.team,series:s,balls:r.balls})});
   }
   return {out,total,cut};
 }
@@ -359,14 +446,33 @@ window.renderCharts=function(){
   const S=[...new Set([...res.bat,...res.bowl].map(r=>r.series))].sort();
   if(sel.dataset.n!==String(S.length)||!sel.options.length){sel.innerHTML='<option value="__all">All series (cut-off applied per series)</option>'+S.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');sel.dataset.n=String(S.length);if(S.includes(cur))sel.value=cur}
   const minPct=Math.max(0,Math.min(100,Number($('c_min').value)||0)),ppw=Number($('c_ppw').value)>0?Number($('c_ppw').value):2;
-  [['bat','Strike rate (runs per 100 balls)','Wins',res.bat,0],['bowl','Economy rate (runs per over)','Wins',res.bowl,2]].forEach(([k,xl,yl,rows,dec])=>{
+  [['bat','Runs scored','Wins',res.bat,0],['bowl','Wickets taken','Wins',res.bowl,0]].forEach(([k,xl,yl,rows,dec])=>{
     const b=build(rows,sel.value,minPct,ppw,k);
-    scatter($('chart_'+k),b.out,xl,yl,dec===0?1:2);
+    scatter($('chart_'+k),b.out,xl,yl,dec);
     $('n_'+k).textContent=`${b.out.length} of ${b.total} ${k==='bat'?'batters':'bowlers'} shown`+(b.cut!==null?` (at least ${Math.ceil(b.cut)} balls)`:'');
   });
   $('charts').hidden=false;
 };
 ['c_series','c_min','c_ppw'].forEach(id=>{$(id).addEventListener('input',()=>window.renderCharts());$(id).addEventListener('change',()=>window.renderCharts())});
+})();
+</script>
+<script>
+(function(){
+const b=document.getElementById('sampleBtn');if(!b)return;
+b.addEventListener('click',()=>{
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([
+    {Player:'Example Batter 1',Team:'Team A',Runs:120,'Balls Faced':90,'Wickets Lost':3},
+    {Player:'Example Batter 2',Team:'Team A',Runs:85,'Balls Faced':70,'Wickets Lost':2},
+    {Player:'Example Batter 3',Team:'Team B',Runs:140,'Balls Faced':100,'Wickets Lost':4},
+    {Player:'Example Batter 4',Team:'Team B',Runs:60,'Balls Faced':55,'Wickets Lost':3}]),'Batters');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([
+    {Player:'Example Bowler 1',Team:'Team A','Runs Conceded':95,'Balls Bowled':72,'Wickets Taken':6},
+    {Player:'Example Bowler 2',Team:'Team A','Runs Conceded':110,'Balls Bowled':78,'Wickets Taken':3},
+    {Player:'Example Bowler 3',Team:'Team B','Runs Conceded':88,'Balls Bowled':66,'Wickets Taken':5},
+    {Player:'Example Bowler 4',Team:'Team B','Runs Conceded':70,'Balls Bowled':48,'Wickets Taken':2}]),'Bowlers');
+  XLSX.writeFile(wb,'Sample Series.xlsx');
+});
 })();
 </script>
 </body>
